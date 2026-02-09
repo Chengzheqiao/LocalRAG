@@ -1,0 +1,13 @@
+# RAGFlow 服务配置覆盖
+# 此文件通过 Docker volume mount 覆盖 RAGFlow 的默认配置
+# 具体字段参考 RAGFlow 文档: https://ragflow.io/docs/references/ragflow_server_configuration
+
+# LLM 相关配置 (优先使用 .env 中的环境变量)
+# user_default_llm:
+#   factory: "Tongyi-Qianwen"
+#   api_key: "${QWEN_API_KEY}"
+
+# Embedding 模型配置
+# user_default_embedding:
+#   factory: "BAAI"
+#   model: "bge-m3"

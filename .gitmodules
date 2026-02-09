@@ -1,0 +1,6 @@
+[submodule "vendor/ragflow"]
+	path = vendor/ragflow
+	url = https://github.com/Chengzheqiao/ragflow.git
+[submodule "vendor/ragas"]
+	path = vendor/ragas
+	url = https://github.com/Chengzheqiao/ragas.git

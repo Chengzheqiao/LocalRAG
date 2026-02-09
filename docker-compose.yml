@@ -1,0 +1,107 @@
+version: "3.8"
+
+# ============================================================
+# LocalRAG - 全服务 Docker Compose 编排
+# 使用方式: docker compose up -d --build
+# ============================================================
+
+services:
+
+  # -------------------- Redis (RAGFlow 依赖) --------------------
+  redis:
+    image: redis:7-alpine
+    container_name: localrag-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    networks:
+      - localrag-net
+
+  # -------------------- Elasticsearch (RAGFlow 依赖) --------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: localrag-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    networks:
+      - localrag-net
+
+  # -------------------- MinIO (RAGFlow 文件存储) --------------------
+  minio:
+    image: minio/minio:latest
+    container_name: localrag-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"   # MinIO Console
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    networks:
+      - localrag-net
+
+  # -------------------- RAGFlow (从 fork 源码构建) --------------------
+  # 注意: 需要先执行 git submodule update --init --recursive
+  # RAGFlow 的 Dockerfile 位于 vendor/ragflow/ 中
+  ragflow:
+    build:
+      context: ./vendor/ragflow
+      dockerfile: Dockerfile
+    container_name: localrag-ragflow
+    ports:
+      - "9380:9380"   # RAGFlow API
+      - "80:80"       # RAGFlow Web UI
+    volumes:
+      - ./data/ragflow:/ragflow/data
+      - ./configs/ragflow/service_conf.yaml:/ragflow/conf/service_conf.yaml:ro
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - MINIO_HOST=minio
+      - MINIO_PORT=9000
+    depends_on:
+      - redis
+      - elasticsearch
+      - minio
+    restart: unless-stopped
+    networks:
+      - localrag-net
+
+  # -------------------- App (Chainlit + LangGraph) --------------------
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: localrag-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - RAGFLOW_BASE_URL=http://ragflow:9380
+    depends_on:
+      - ragflow
+    restart: unless-stopped
+    networks:
+      - localrag-net
+
+networks:
+  localrag-net:
+    driver: bridge
+
+volumes:
+  es_data:
+  minio_data:
