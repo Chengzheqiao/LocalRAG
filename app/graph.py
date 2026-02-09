@@ -28,6 +28,7 @@ class GraphState(TypedDict):
     relevance_score: float           # 文档相关性得分
     rewrite_count: int               # 重写次数计数器
     web_search: bool                 # 是否需要联网搜索 (可选扩展)
+    dataset_ids: List[str]           # 动态指定的知识库 ID 列表
 
 
 # ===== 条件边: 判断是否需要重写 =====

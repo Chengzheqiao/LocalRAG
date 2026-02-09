@@ -19,17 +19,21 @@ def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     通过 RAGFlow /api/v1/retrieval 检索与问题相关的文档切片。
     优先使用重写后的问题 (如果有的话)。
+    优先使用 state 中动态传入的 dataset_ids，未指定时回退到环境变量配置。
 
     Args:
-        state: 包含 question / rewritten_question 的状态字典
+        state: 包含 question / rewritten_question / dataset_ids 的状态字典
 
     Returns:
         更新后的 state，包含 documents 字段
     """
     query = state.get("rewritten_question") or state["question"]
 
-    if not RAGFLOW_DATASET_IDS:
-        logger.warning("RAGFLOW_DATASET_IDS 未配置，跳过检索")
+    # 优先使用 state 中动态指定的知识库，回退到全局配置
+    dataset_ids = state.get("dataset_ids") or RAGFLOW_DATASET_IDS
+
+    if not dataset_ids:
+        logger.warning("无可用知识库 ID，跳过检索")
         return {**state, "documents": []}
 
     try:
@@ -41,7 +45,7 @@ def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
             },
             json={
                 "question": query,
-                "dataset_ids": RAGFLOW_DATASET_IDS,
+                "dataset_ids": dataset_ids,
                 "top_k": _TOP_K,
             },
             timeout=30,
