@@ -3,9 +3,10 @@
 从 .env 文件和环境变量中读取所有配置项
 
 加载优先级:
-  1. .env_localtest (本地调试，host 指向 localhost)
-  2. .env           (容器部署，host 指向 Docker 内部网络名)
-  Docker 容器中通过 env_file 直接注入环境变量，两个文件均不会生效。
+  1. .env_clouddev   (云环境调试，host 指向阿里云 ECS)
+  2. .env_localtest  (本地调试，host 指向 localhost)
+  3. .env            (容器部署，host 指向 Docker 内部网络名)
+  Docker 容器中通过 env_file 直接注入环境变量，以上文件均不会生效。
 """
 
 import os
@@ -15,8 +16,12 @@ from dotenv import load_dotenv
 # 项目根目录 (app/utils/config.py -> 向上两级到项目根)
 _project_root = Path(__file__).resolve().parent.parent.parent
 
+_cloud_env = _project_root / ".env_clouddev"
 _local_env = _project_root / ".env_localtest"
-if _local_env.exists():
+
+if _cloud_env.exists():
+    load_dotenv(_cloud_env)
+elif _local_env.exists():
     load_dotenv(_local_env)
 else:
     load_dotenv(_project_root / ".env")

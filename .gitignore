@@ -1,6 +1,7 @@
 # ===== 环境与密钥 =====
 .env
 .env_localtest
+.env_clouddev
 
 # ===== Docker 持久化数据 =====
 data/

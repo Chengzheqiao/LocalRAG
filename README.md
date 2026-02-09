@@ -36,6 +36,7 @@ LocalRAG/
 ├── .env.example                 # 环境变量模板
 ├── .env                         # 生产容器配置 (host 指向 Docker 网络名)
 ├── .env_localtest               # 本地调试配置 (host 指向 localhost)
+├── .env_clouddev                # 云环境调试配置 (host 指向阿里云 ECS)
 ├── docker-compose.yml           # 顶层服务编排 (App + RAGFlow 依赖)
 ├── Makefile                     # 快捷命令
 │
@@ -43,6 +44,8 @@ LocalRAG/
 │   ├── local-setup.sh           # 本地 conda 环境搭建
 │   ├── local-start.sh           # 本地调试启动
 │   ├── local-stop.sh            # 本地调试停止
+│   ├── cloud-start.sh           # 云环境调试启动
+│   ├── cloud-stop.sh            # 云环境调试停止
 │   ├── prod-build.sh            # 生产镜像构建
 │   ├── prod-start.sh            # 生产容器启动
 │   └── prod-stop.sh             # 生产容器停止
@@ -153,9 +156,10 @@ make restart SVC=app    # 重启指定服务
 |------|------|-----------|
 | `.env` | 生产容器化部署 (docker-compose) | Docker 内部网络名 (`qdrant`, `ragflow` 等) |
 | `.env_localtest` | 本地调试 | `localhost` |
+| `.env_clouddev` | 云环境调试 (clouddev 分支) | 阿里云 ECS 公网 IP |
 | `.env.example` | 模板，首次使用时复制 | — |
 
-`config.py` 自动按优先级加载: `.env_localtest` 存在则用它，否则回退到 `.env`。Docker 容器中通过 `env_file` 直接注入环境变量，不受文件影响。
+`config.py` 自动按优先级加载: `.env_clouddev` > `.env_localtest` > `.env`。Docker 容器中通过 `env_file` 直接注入环境变量，不受文件影响。
 
 ### 本地调试 (Local Development)
 
@@ -189,6 +193,40 @@ bash ops/prod-stop.sh
 # 停止并清除数据卷
 bash ops/prod-stop.sh --clean
 ```
+
+### 云环境调试 (Cloud Dev) — clouddev 分支
+
+资源密集型中间件 (RAGFlow/ES/Redis/MinIO) 部署在阿里云 ECS，本地仅运行 App。适用于本地机器资源不足的场景。
+
+**阿里云 ECS 侧** (建议 4C8G+):
+
+```bash
+# SSH 登录 ECS 后，克隆仓库并拉起 RAGFlow 全套服务
+git clone --recursive https://github.com/Chengzheqiao/LocalRAG.git
+cd LocalRAG/vendor/ragflow/docker
+docker compose up -d
+```
+
+**本地侧**:
+
+```bash
+# 1. 切换到 clouddev 分支
+git checkout clouddev
+
+# 2. 编辑 .env_clouddev，将 <ECS_PUBLIC_IP> 替换为实际 ECS 公网 IP
+vim .env_clouddev
+
+# 3. 一键搭建 conda 环境 (仅首次，与本地调试共享)
+bash ops/local-setup.sh
+
+# 4. 启动云环境调试 (自动检查 ECS 连通性 + 启动 Chainlit)
+bash ops/cloud-start.sh
+
+# 5. 停止云环境调试
+bash ops/cloud-stop.sh
+```
+
+**ECS 安全组需放行端口**: 9380 (RAGFlow API), 80 (RAGFlow Web UI), 9200 (ES), 6379 (Redis), 9000/9001 (MinIO)。
 
 ## 开发路线
 
